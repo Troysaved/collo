@@ -38,6 +38,11 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# secrets
+firebase.ts
+service_key.json
+
 next-env.d.ts
 
 # clerk configuration (can include secrets)
