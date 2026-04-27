@@ -5,9 +5,9 @@ import liveblocks from "@/lib/liveblocks";
 import { auth } from "@clerk/nextjs/server";
 
 export async function createNewDocument() {
-  await auth.protect();
+  auth().protect();
 
-  const { sessionClaims } = await auth();
+  const { sessionClaims } = auth();
 
   const docCollectionRef = adminDb.collection("documents");
   const docRef = await docCollectionRef.add({ title: "New Doc" });
@@ -28,7 +28,7 @@ export async function createNewDocument() {
 }
 
 export async function inviteUserToDocument(roomId: string, email: string) {
-  await auth.protect();
+  auth().protect();
 
   console.log("inviteUserToDocument", roomId, email);
 
@@ -53,7 +53,7 @@ export async function inviteUserToDocument(roomId: string, email: string) {
 }
 
 export async function removeUserFromDocument(roomId: string, email: string) {
-  await auth.protect();
+  auth().protect();
 
   console.log("removeUserFromDocument", roomId, email);
 
@@ -73,7 +73,7 @@ export async function removeUserFromDocument(roomId: string, email: string) {
 }
 
 export async function deleteDocument(roomId: string) {
-  await auth.protect();
+  auth().protect();
 
   console.log("deleteDocument", roomId);
 
