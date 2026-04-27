@@ -4,12 +4,14 @@ import type { ServiceAccount } from "firebase-admin/app";
 
 function loadServiceAccount(): ServiceAccount {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (raw) {
-    return JSON.parse(raw) as ServiceAccount;
+  if (!raw) {
+    throw new Error(
+      "FIREBASE_SERVICE_ACCOUNT_JSON env var is not set. " +
+        "Paste the contents of your service account JSON into .env.local " +
+        "(local) and the Vercel project settings (deploy).",
+    );
   }
-  // Local fallback: service_key.json sits next to this file (gitignored).
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require("./service_key.json") as ServiceAccount;
+  return JSON.parse(raw) as ServiceAccount;
 }
 
 let app: App;
