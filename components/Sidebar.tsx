@@ -21,7 +21,7 @@ import {
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronRight, Search, Plus, Bookmark, Bell, BookOpen, MenuIcon } from "lucide-react";
+import { ChevronRight, Plus, BookOpen, MenuIcon } from "lucide-react";
 import { createNewDocument } from "@/actions";
 import SidebarPage from "./SidebarPage";
 
@@ -125,58 +125,40 @@ function SidebarBody({ grouped }: { grouped: { owner: RoomDocument[]; editor: Ro
     <div className="h-full overflow-y-auto scrollbar-hide" style={{ padding: "28px 18px" }}>
       {/* workspace header */}
       <div className="flex items-center gap-3 mb-6">
-        <div
-          className="flex items-center justify-center"
-          style={{
-            width: 28,
-            height: 28,
-            background: "var(--accent)",
-            color: "var(--cream)",
-            borderRadius: 2,
-            fontFamily: "var(--serif)",
-            fontSize: 18,
-            fontStyle: "italic",
-          }}
+        <Link
+          href="/"
+          className="flex items-center gap-3 flex-1 min-w-0"
+          style={{ textDecoration: "none", color: "inherit" }}
+          title="Back to your study"
         >
-          V
-        </div>
-        <div className="flex-1 min-w-0">
-          <div style={{ fontFamily: "var(--serif)", fontSize: 16, fontStyle: "italic" }}>
-            ViaVienna
+          <div
+            className="flex items-center justify-center"
+            style={{
+              width: 28,
+              height: 28,
+              background: "var(--accent)",
+              color: "var(--cream)",
+              borderRadius: 2,
+              fontFamily: "var(--serif)",
+              fontSize: 18,
+              fontStyle: "italic",
+              flexShrink: 0,
+            }}
+          >
+            V
           </div>
-          <div className="smallcaps" style={{ fontSize: 10 }}>
-            {friendCount === 0 ? "your study" : `${friendCount} ${friendCount === 1 ? "page" : "pages"}`}
+          <div className="flex-1 min-w-0">
+            <div style={{ fontFamily: "var(--serif)", fontSize: 16, fontStyle: "italic" }}>
+              ViaVienna
+            </div>
+            <div className="smallcaps" style={{ fontSize: 10 }}>
+              {friendCount === 0 ? "your study" : `${friendCount} ${friendCount === 1 ? "page" : "pages"}`}
+            </div>
           </div>
-        </div>
+        </Link>
         <SignedIn>
           <UserButton appearance={{ elements: { avatarBox: { width: 24, height: 24 } } }} />
         </SignedIn>
-      </div>
-
-      {/* search */}
-      <div
-        className="flex items-center gap-2 mb-5"
-        style={{
-          padding: "7px 10px",
-          background: "var(--cream)",
-          border: "1px solid var(--rule)",
-          borderRadius: 2,
-          color: "var(--ink-3)",
-          fontSize: 12,
-        }}
-      >
-        <Search size={13} />
-        <span style={{ fontFamily: "var(--serif)", fontStyle: "italic" }}>Turn to a page…</span>
-        <span
-          style={{
-            marginLeft: "auto",
-            fontFamily: "var(--mono)",
-            fontSize: 10,
-            color: "var(--ink-4)",
-          }}
-        >
-          ⌘K
-        </span>
       </div>
 
       {/* quick items */}
@@ -188,8 +170,6 @@ function SidebarBody({ grouped }: { grouped: { owner: RoomDocument[]; editor: Ro
             active={pathname === "/"}
             href="/"
           />
-          <SideItem icon={<Bookmark size={12} />} label="Marked" />
-          <SideItem icon={<Bell size={12} />} label="Marginalia" />
         </div>
 
         <Folder

@@ -29,14 +29,14 @@ function DeleteDocument() {
     if (!roomId) return;
 
     startTransition(async () => {
-      const { success } = await deleteDocument(roomId);
+      const result = await deleteDocument(roomId);
 
-      if (success) {
+      if (result.success) {
         setIsOpen(false);
         router.replace("/");
         toast.success("Room Deleted successfully!");
       } else {
-        toast.error("Failed to delete room!");
+        toast.error(`Failed to delete room: ${result.error ?? "unknown error"}`);
       }
     });
   };

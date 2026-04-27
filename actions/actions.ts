@@ -75,28 +75,56 @@ export async function removeUserFromDocument(roomId: string, email: string) {
 export async function deleteDocument(roomId: string) {
   auth().protect();
 
-  console.log("deleteDocument", roomId);
-
+  // 1. Delete the document itself — this is the source of truth.
   try {
     await adminDb.collection("documents").doc(roomId).delete();
+  } catch (error: any) {
+    console.error("deleteDocument: documents delete failed", error);
+    return {
+      success: false,
+      error: error?.message ?? "could not delete document",
+    };
+  }
 
-    const query = await adminDb
+  // 2. Best-effort: clean up per-user room references.
+  //    This needs a collection-group index on `rooms.roomId`. If it isn't
+  //    set up yet, leave the orphans (the UI hides them once the parent doc
+  //    is gone) and let delete still succeed.
+  try {
+    const q = await adminDb
       .collectionGroup("rooms")
       .where("roomId", "==", roomId)
       .get();
-    const batch = adminDb.batch();
-
-    query.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-
-    await batch.commit();
-
-    await liveblocks.deleteRoom(roomId);
-
-    return { success: true };
-  } catch (error) {
-    console.error(error);
-    return { success: false };
+    if (!q.empty) {
+      const batch = adminDb.batch();
+      q.docs.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
+  } catch (error: any) {
+    const code = error?.code;
+    if (code === 9) {
+      console.warn(
+        "deleteDocument: skipping per-user cleanup — Firestore needs a collection-group index on `rooms.roomId`.",
+        "Create the index via the URL in the Firestore error, or in the Firebase Console:",
+        "Firestore > Indexes > Single field > add exemption for collection `rooms`, field `roomId`, collection group scope.",
+        "Full error:",
+        error?.details ?? error?.message,
+      );
+    } else {
+      console.error("deleteDocument: per-user cleanup failed", error);
+    }
   }
+
+  // 3. Best-effort: delete the Liveblocks room. Lazily-created rooms 404
+  //    if the doc was never opened — that's fine.
+  try {
+    await liveblocks.deleteRoom(roomId);
+  } catch (error: any) {
+    const status = error?.status ?? error?.cause?.status;
+    if (status && status !== 404) {
+      console.error("deleteDocument: liveblocks.deleteRoom failed", error);
+    }
+  }
+
+  return { success: true };
 }

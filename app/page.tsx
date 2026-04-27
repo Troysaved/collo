@@ -1,9 +1,11 @@
 "use client";
 
 import { useUser, SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
-import { useCollection } from "react-firebase-hooks/firestore";
+import { useCollection, useDocument } from "react-firebase-hooks/firestore";
 import {
   collectionGroup,
+  deleteDoc,
+  doc as fsDoc,
   DocumentData,
   query,
   where,
@@ -156,10 +158,7 @@ export default function Home() {
               className="grid"
               style={{
                 gridTemplateColumns: "1fr 1fr",
-                gap: 1,
-                background: "var(--rule)",
-                border: "1px solid var(--rule)",
-                borderRadius: 2,
+                gap: 12,
               }}
             >
               {rooms.map((r) => (
@@ -245,7 +244,14 @@ export default function Home() {
 }
 
 function RoomCard({ room }: { room: RoomDocument }) {
-  const [docData] = useDocSnap(room.roomId);
+  const [snap, loading] = useDocument(fsDoc(db, "documents", room.roomId));
+  const [hover, setHover] = useState(false);
+  useOrphanCleanup(room, snap, loading);
+
+  // Hide orphan room refs whose parent document was deleted.
+  if (!loading && snap && !snap.exists()) return null;
+
+  const docData = snap?.data();
   const title = docData?.title || "Untitled page";
   const sub = room.role === "owner" ? "your page" : "shared with you";
 
@@ -254,18 +260,23 @@ function RoomCard({ room }: { room: RoomDocument }) {
       href={`/doc/${room.roomId}`}
       className="block"
       style={{
-        background: "var(--cream)",
+        background: hover ? "#fffbf0" : "var(--cream)",
+        border: "1px solid var(--rule)",
+        borderRadius: 2,
         padding: "22px 24px",
         minHeight: 150,
         cursor: "pointer",
-        transition: "background .12s",
+        transition: "background .12s, color .12s, border-color .12s",
         textDecoration: "none",
-        color: "inherit",
+        color: hover ? "var(--accent)" : "inherit",
+        borderColor: hover ? "var(--accent)" : "var(--rule)",
       }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = "#fffbf0")}
-      onMouseLeave={(e) => (e.currentTarget.style.background = "var(--cream)")}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
-      <div className="smallcaps">{sub}</div>
+      <div className="smallcaps" style={{ color: hover ? "var(--accent)" : undefined, transition: "color .12s" }}>
+        {sub}
+      </div>
       <div
         style={{
           fontFamily: "var(--serif)",
@@ -273,7 +284,8 @@ function RoomCard({ room }: { room: RoomDocument }) {
           lineHeight: 1.15,
           margin: "8px 0 12px",
           letterSpacing: -0.3,
-          color: "var(--ink)",
+          color: hover ? "var(--accent)" : "var(--ink)",
+          transition: "color .12s",
         }}
       >
         {title}
@@ -281,9 +293,10 @@ function RoomCard({ room }: { room: RoomDocument }) {
       <div
         style={{
           fontSize: 12,
-          color: "var(--ink-3)",
+          color: hover ? "var(--accent)" : "var(--ink-3)",
           fontStyle: "italic",
           fontFamily: "var(--serif)",
+          transition: "color .12s",
         }}
       >
         Turn the page →
@@ -303,11 +316,11 @@ function NewCard({ onNew, pending }: { onNew: () => void; pending: boolean }) {
         minHeight: 150,
         cursor: pending ? "wait" : "pointer",
         textAlign: "left",
-        border: "none",
-        borderRadius: 0,
+        border: "1px dashed var(--rule)",
+        borderRadius: 2,
         color: "inherit",
         fontFamily: "var(--body)",
-        transition: "background .12s",
+        transition: "background .12s, border-color .12s",
       }}
       onMouseEnter={(e) =>
         !pending && (e.currentTarget.style.background = "#fffbf0")
@@ -395,7 +408,11 @@ function EmptyDesk({ onNew, pending }: { onNew: () => void; pending: boolean }) 
 }
 
 function ActivityRow({ room }: { room: RoomDocument }) {
-  const [docData] = useDocSnap(room.roomId);
+  const [snap, loading] = useDocument(fsDoc(db, "documents", room.roomId));
+  useOrphanCleanup(room, snap, loading);
+  if (!loading && snap && !snap.exists()) return null;
+
+  const docData = snap?.data();
   const title = docData?.title || "Untitled page";
   const verb = room.role === "owner" ? "you opened" : "shared with you";
   const when = relativeWhen(room.createdAt);
@@ -447,20 +464,23 @@ function ActivityRow({ room }: { room: RoomDocument }) {
   );
 }
 
-function useDocSnap(id: string) {
-  const [snap, setSnap] = useState<DocumentData | undefined>(undefined);
+// Once we know the parent document is gone, delete the orphan room ref from
+// the user's own subcollection so the home/sidebar don't keep ghost entries.
+// The path is fully known (users/{email}/rooms/{roomId}) so this works even
+// without the collection-group index.
+function useOrphanCleanup(
+  room: RoomDocument,
+  snap: { exists: () => boolean } | undefined,
+  loading: boolean,
+) {
   useEffect(() => {
-    let cancelled = false;
-    import("firebase/firestore").then(({ doc, onSnapshot }) => {
-      const ref = doc(db, "documents", id);
-      const unsub = onSnapshot(ref, (s) => !cancelled && setSnap(s.data()));
-      return () => unsub();
+    if (loading || !snap || snap.exists()) return;
+    const email = room.userId;
+    if (!email || !room.roomId) return;
+    deleteDoc(fsDoc(db, "users", email, "rooms", room.roomId)).catch(() => {
+      /* best-effort: rules may forbid editor cleanup, that's fine */
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-  return [snap] as const;
+  }, [loading, snap, room.userId, room.roomId]);
 }
 
 function todayLine(): string {
