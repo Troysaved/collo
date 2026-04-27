@@ -40,7 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 
 # secrets
-firebase.ts
 service_key.json
 
 next-env.d.ts
